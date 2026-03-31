@@ -272,9 +272,9 @@ if (!function_exists('calculate_tag_goals')) {
                 break;
 
             case 'bulk':
-                $kcal = $maintenance + 300;
-                $protein = round($weight * 2.0, 1);
-                $fat = round($weight * 1.0, 1);
+                $kcal = max(3500, $maintenance + 800);
+                $protein = round(max($weight * 2.2, 180), 1);
+                $fat = round(max($weight * 1.25, 100), 1);
                 $carb = round(max(0, ($kcal - ($protein * 4) - ($fat * 9)) / 4), 1);
                 break;
 
