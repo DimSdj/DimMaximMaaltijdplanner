@@ -289,7 +289,7 @@ $ph50 = ph_svg_data_uri(50, 50);
 
     <!-- Meals per slot -->
     <main class="px-5 mt-4 space-y-6">
-        <div class="flex gap-3">
+        <div class="flex gap-3 flex-wrap">
             <a href="./recepten.php"
                 class="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold">
                 Recepten
@@ -298,8 +298,11 @@ $ph50 = ph_svg_data_uri(50, 50);
                 class="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold">
                 Boodschappenlijst
             </a>
+            <a href="./tags.php"
+                class="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold">
+                Tags
+            </a>
         </div>
-
         <?php foreach ($slots as $slot):
             $items = $grouped[$slot] ?? [];
             if (!count($items))
@@ -392,40 +395,49 @@ $ph50 = ph_svg_data_uri(50, 50);
     </div>
 
     <!-- NAV -->
-    <nav class="fixed bottom-0 inset-x-0 bg-[color:var(--card)]/95 backdrop-blur border-t border-white/5 z-[50]">
-        <div class="flex items-center justify-around h-16">
-            <a href="./index.php"
-                class="flex flex-col items-center gap-1 <?= $activeTab === 'dagboek' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                    <path d="M4 6h16v12H4zM7 9h10v2H7zM7 13h6v2H7z" />
-                </svg>
-                <span class="text-xs">Dagboek</span>
-            </a>
-            <a href="./planner.php"
-                class="flex flex-col items-center gap-1 <?= $activeTab === 'planner' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                    <path d="M6 3h2v2h8V3h2v2h2v14H4V5h2V3zm0 6h12v8H6V9z" />
-                </svg>
-                <span class="text-xs">Planner</span>
-            </a>
-            
-            <a href="./recepten.php"
-                class="flex flex-col items-center gap-1 <?= $activeTab === 'recepten' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                    <path d="M6 4h11a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h11V6H6Zm2 2h7v2H8V8Zm0 4h7v2H8v-2Z" />
-                </svg>
-                <span class="text-xs">Recepten</span>
-            </a>
+<nav class="fixed bottom-0 inset-x-0 bg-[color:var(--card)]/95 backdrop-blur border-t border-white/5 z-[50]">
+    <div class="flex items-center justify-between px-3 h-16">
+        <a href="./index.php"
+            class="flex flex-col items-center gap-1 <?= $activeTab === 'dagboek' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                <path d="M4 6h16v12H4zM7 9h10v2H7zM7 13h6v2H7z" />
+            </svg>
+            <span class="text-xs">Dagboek</span>
+        </a>
 
-            <a href="./profile.php"
-                class="flex flex-col items-center gap-1 <?= $activeTab === 'profiel' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-5 0-8 2.5-8 5v1h16v-1c0-2.5-3-5-8-5z" />
-                </svg>
-                <span class="text-xs">Profiel</span>
-            </a>
-        </div>
-    </nav>
+        <a href="./planner.php"
+            class="flex flex-col items-center gap-1 <?= $activeTab === 'planner' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                <path d="M6 3h2v2h8V3h2v2h2v14H4V5h2V3zm0 6h12v8H6V9z" />
+            </svg>
+            <span class="text-xs">Planner</span>
+        </a>
+
+        <a href="./recepten.php"
+            class="flex flex-col items-center gap-1 <?= $activeTab === 'recepten' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                <path d="M6 4h11a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h11V6H6Zm2 2h7v2H8V8Zm0 4h7v2H8v-2Z" />
+            </svg>
+            <span class="text-xs">Recepten</span>
+        </a>
+
+        <a href="./tags.php"
+            class="flex flex-col items-center gap-1 <?= $activeTab === 'tags' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                <path d="M10 3H5a2 2 0 0 0-2 2v5a2 2 0 0 0 .59 1.41l8 8a2 2 0 0 0 2.82 0l5.18-5.18a2 2 0 0 0 0-2.82l-8-8A2 2 0 0 0 10 3zm-3 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
+            </svg>
+            <span class="text-xs">Tags</span>
+        </a>
+
+        <a href="./profile.php"
+            class="flex flex-col items-center gap-1 <?= $activeTab === 'profiel' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-5 0-8 2.5-8 5v1h16v-1c0-2.5-3-5-8-5z" />
+            </svg>
+            <span class="text-xs">Profiel</span>
+        </a>
+    </div>
+</nav>
 
  <script>
   // === Endpoints ===
