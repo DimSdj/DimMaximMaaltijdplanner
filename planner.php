@@ -245,13 +245,12 @@ $nlDays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
         </div>
     </header>
 
-    <!-- Weekgrid -->
     <section class="px-5 mt-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
             <?php for ($i = 0; $i < 7; $i++):
                 $dTs = strtotime("+$i days", $weekStartTs);
                 $dKey = date('Y-m-d', $dTs);
-                $dw = (int) date('N', $dTs); // 1..7
+                $dw = (int) date('N', $dTs);
                 $isToday = (date('Y-m-d') === $dKey);
                 $vals = $days[$dKey];
                 $pct = $goals['kcal'] > 0 ? min(100, ($vals['kcal'] / $goals['kcal']) * 100) : 0;
@@ -263,7 +262,6 @@ $nlDays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
                         <div class="text-white/60 text-sm"><?= date('d M', $dTs) ?></div>
                     </div>
 
-                    <!-- kcal ring -->
                     <div class="ring mx-auto" style="width:110px; height:110px;">
                         <?php $p = round($pct); ?>
                         <svg viewBox="0 0 36 36" width="110" height="110">
@@ -279,16 +277,15 @@ $nlDays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
                         <?= (int) round($vals['kcal']) ?> / <?= (int) $goals['kcal'] ?> kcal
                     </div>
                     <div class="mt-2 text-xs text-white/75 space-y-1">
-                        <div> Eiwit: <?= (int) round($vals['protein']) ?> / <?= (int) $goals['protein'] ?> g</div>
-                        <div> Kh: <?= (int) round($vals['carb']) ?> / <?= (int) $goals['carb'] ?> g</div>
-                        <div> Vet: <?= (int) round($vals['fat']) ?> / <?= (int) $goals['fat'] ?> g</div>
+                        <div>Eiwit: <?= (int) round($vals['protein']) ?> / <?= (int) $goals['protein'] ?> g</div>
+                        <div>Kh: <?= (int) round($vals['carb']) ?> / <?= (int) $goals['carb'] ?> g</div>
+                        <div>Vet: <?= (int) round($vals['fat']) ?> / <?= (int) $goals['fat'] ?> g</div>
                     </div>
                 </a>
             <?php endfor; ?>
         </div>
     </section>
 
-    <!-- NAV -->
     <nav class="tabbar">
         <a href="./index.php" class="<?= $activeTab === 'dagboek' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
             <div class="flex flex-col items-center gap-1">
@@ -298,7 +295,9 @@ $nlDays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
                 <span class="text-xs">Dagboek</span>
             </div>
         </a>
-        <a href="./planner.php" class="<?= $activeTab === 'planner' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+
+        <a href="./planner.php"
+            class="<?= $activeTab === 'planner' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
             <div class="flex flex-col items-center gap-1">
                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 3h2v2h8V3h2v2h2v14H4V5h2V3zm0 6h12v8H6V9z" />
@@ -306,16 +305,30 @@ $nlDays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
                 <span class="text-xs">Planner</span>
             </div>
         </a>
-        
+
         <a href="./recepten.php"
-            class="flex flex-col items-center gap-1 <?= $activeTab === 'recepten' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                <path d="M6 4h11a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h11V6H6Zm2 2h7v2H8V8Zm0 4h7v2H8v-2Z" />
-            </svg>
-            <span class="text-xs">Recepten</span>
+            class="<?= $activeTab === 'recepten' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <div class="flex flex-col items-center gap-1">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M6 4h11a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h11V6H6Zm2 2h7v2H8V8Zm0 4h7v2H8v-2Z" />
+                </svg>
+                <span class="text-xs">Recepten</span>
+            </div>
         </a>
 
-        <a href="./profile.php" class="<?= $activeTab === 'profiel' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+        <a href="./tags.php" class="<?= $activeTab === 'tags' ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
+            <div class="flex flex-col items-center gap-1">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M10 3H5a2 2 0 0 0-2 2v5a2 2 0 0 0 .59 1.41l8 8a2 2 0 0 0 2.82 0l5.18-5.18a2 2 0 0 0 0-2.82l-8-8A2 2 0 0 0 10 3zm-3 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
+                </svg>
+                <span class="text-xs">Tags</span>
+            </div>
+        </a>
+
+        <a href="./profile.php"
+            class="<?= ($activeTab === 'profiel' || $activeTab === 'profile') ? 'text-[color:var(--accent)]' : 'text-white/70' ?>">
             <div class="flex flex-col items-center gap-1">
                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-5 0-8 2.5-8 5v1h16v-1c0-2.5-3-5-8-5z" />
