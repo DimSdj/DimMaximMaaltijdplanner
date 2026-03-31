@@ -94,8 +94,21 @@ if (!function_exists('has_profile_data')) {
     }
 }
 
-if (!function_exists('calculate_recommended_goals')) {
-    function calculate_recommended_goals(array $profile): array
+if (!function_exists('tag_label')) {
+    function tag_label(string $tag): string
+    {
+        $map = [
+            'eiwitrijk' => 'Eiwitrijk',
+            'duurzaam' => 'Duurzaam',
+            'bulk' => 'Bulk',
+        ];
+
+        return $map[$tag] ?? ucfirst($tag);
+    }
+}
+
+if (!function_exists('calculate_default_goals')) {
+    function calculate_default_goals(array $profile): array
     {
         $age = (int) ($profile['age'] ?? 0);
         $height = (float) ($profile['height_cm'] ?? 0);
@@ -118,10 +131,10 @@ if (!function_exists('calculate_recommended_goals')) {
         }
 
         $activityFactors = [
-            'sedentary' => 1.2,
-            'light' => 1.375,
-            'moderate' => 1.55,
-            'active' => 1.725,
+            'sedentary'   => 1.2,
+            'light'       => 1.375,
+            'moderate'    => 1.55,
+            'active'      => 1.725,
             'very_active' => 1.9,
         ];
         $activityFactor = $activityFactors[$activity] ?? 1.55;
@@ -158,6 +171,94 @@ if (!function_exists('calculate_recommended_goals')) {
             'carb' => $carb,
             'fat' => $fat,
         ];
+    }
+}
+
+if (!function_exists('calculate_tag_goals')) {
+    function calculate_tag_goals(string $tag, array $profile): array
+    {
+        $age = (int) ($profile['age'] ?? 0);
+        $height = (float) ($profile['height_cm'] ?? 0);
+        $weight = (float) ($profile['weight_kg'] ?? 0);
+        $sex = (string) ($profile['sex'] ?? 'male');
+        $activity = (string) ($profile['activity_level'] ?? 'moderate');
+
+        if ($age <= 0 || $height <= 0 || $weight <= 0) {
+            return [];
+        }
+
+        if ($sex === 'female') {
+            $bmr = (10 * $weight) + (6.25 * $height) - (5 * $age) - 161;
+        } elseif ($sex === 'other') {
+            $bmr = (10 * $weight) + (6.25 * $height) - (5 * $age);
+        } else {
+            $bmr = (10 * $weight) + (6.25 * $height) - (5 * $age) + 5;
+        }
+
+        $activityFactors = [
+            'sedentary'   => 1.2,
+            'light'       => 1.375,
+            'moderate'    => 1.55,
+            'active'      => 1.725,
+            'very_active' => 1.9,
+        ];
+        $activityFactor = $activityFactors[$activity] ?? 1.55;
+        $maintenance = (int) round($bmr * $activityFactor);
+
+        switch ($tag) {
+            case 'eiwitrijk':
+                $kcal = $maintenance;
+                $protein = round($weight * 2.0, 1);
+                $fat = round($weight * 0.8, 1);
+                $carb = round(max(0, ($kcal - ($protein * 4) - ($fat * 9)) / 4), 1);
+                break;
+
+            case 'duurzaam':
+                $kcal = max(1400, $maintenance - 300);
+                $protein = round($weight * 1.8, 1);
+                $fat = round($weight * 0.9, 1);
+                $carb = round(max(0, ($kcal - ($protein * 4) - ($fat * 9)) / 4), 1);
+                break;
+
+            case 'bulk':
+                $kcal = $maintenance + 300;
+                $protein = round($weight * 2.0, 1);
+                $fat = round($weight * 1.0, 1);
+                $carb = round(max(0, ($kcal - ($protein * 4) - ($fat * 9)) / 4), 1);
+                break;
+
+            default:
+                return [];
+        }
+
+        return [
+            'kcal' => (int) $kcal,
+            'protein' => (float) $protein,
+            'carb' => (float) $carb,
+            'fat' => (float) $fat,
+        ];
+    }
+}
+
+if (!function_exists('calculate_goals_with_active_tag')) {
+    function calculate_goals_with_active_tag(array $profile, string $activeTag = ''): array
+    {
+        if ($activeTag !== '') {
+            $tagGoals = calculate_tag_goals($activeTag, $profile);
+            if ($tagGoals) {
+                return $tagGoals;
+            }
+        }
+
+        return calculate_default_goals($profile);
+    }
+}
+
+if (!function_exists('get_active_tag')) {
+    function get_active_tag(mysqli $mysqli): string
+    {
+        $rows = sql_select($mysqli, "SELECT active_tag FROM tag_settings WHERE id = 1 LIMIT 1");
+        return (string) ($rows[0]['active_tag'] ?? '');
     }
 }
 
@@ -209,6 +310,26 @@ if (!$existingProfile) {
 }
 $profile = $existingProfile[0];
 
+/* -------------------------- Tag bootstrap -------------------------- */
+sql_execute($mysqli, "
+    CREATE TABLE IF NOT EXISTS tag_settings (
+        id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+        active_tag VARCHAR(50) NULL,
+        updated_at TIMESTAMP NULL DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+
+$existingTag = sql_select($mysqli, "SELECT * FROM tag_settings WHERE id = 1");
+if (!$existingTag) {
+    sql_execute(
+        $mysqli,
+        "INSERT INTO tag_settings (id, active_tag, updated_at)
+         VALUES (1, '', NOW())"
+    );
+}
+
+$activeTag = get_active_tag($mysqli);
+
 /* -------------------------- POST verwerken -------------------------- */
 $successMsg = null;
 $errorMsg = null;
@@ -242,7 +363,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $carb = isset($_POST['carb']) ? (float) str_replace(',', '.', $_POST['carb']) : (float) $goals['carb'];
     $fat = isset($_POST['fat']) ? (float) str_replace(',', '.', $_POST['fat']) : (float) $goals['fat'];
 
-    // Laat formulier direct de nieuwste waarden tonen
     $profile['age'] = $age;
     $profile['height_cm'] = $heightCm;
     $profile['weight_kg'] = $weightKg;
@@ -268,14 +388,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errorMsg && isset($_POST['calculate_from_profile'])) {
-        $recommended = calculate_recommended_goals([
+        $recommended = calculate_goals_with_active_tag([
             'age' => $age,
             'height_cm' => $heightCm,
             'weight_kg' => $weightKg,
             'sex' => $sex,
             'activity_level' => $activityLevel,
             'goal' => $goal,
-        ]);
+        ], $activeTag);
 
         if (!$recommended) {
             $errorMsg = "Vul eerst een geldige leeftijd, lengte en gewicht in.";
@@ -327,20 +447,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($okProfile && $okGoals) {
             if (isset($_POST['calculate_from_profile'])) {
-                $successMsg = "Profiel opgeslagen en dagdoelen automatisch berekend.";
+                if ($activeTag !== '') {
+                    $successMsg = "Profiel opgeslagen en dagdoelen berekend met actieve tag: " . tag_label($activeTag) . ".";
+                } else {
+                    $successMsg = "Profiel opgeslagen en dagdoelen automatisch berekend.";
+                }
             } else {
                 $successMsg = "Profiel en dagdoelen opgeslagen.";
             }
 
             $profile = sql_select($mysqli, "SELECT * FROM user_profile WHERE id = 1")[0];
             $goals = sql_select($mysqli, "SELECT * FROM goals WHERE id = 1")[0];
+            $activeTag = get_active_tag($mysqli);
         } else {
             $errorMsg = "Opslaan mislukt.";
         }
     }
 }
 
-$recommendedPreview = has_profile_data($profile) ? calculate_recommended_goals($profile) : [];
+$recommendedPreview = has_profile_data($profile)
+    ? calculate_goals_with_active_tag($profile, $activeTag)
+    : [];
 
 /* -------------------------- Header -------------------------- */
 require __DIR__ . '/layouts/header.php';
@@ -351,15 +478,15 @@ require __DIR__ . '/layouts/header.php';
     <p style="opacity:.85;margin:0 0 18px 0;">Stel hier je profiel en dagelijkse doelen in.</p>
 
     <?php if ($successMsg): ?>
-            <div style="background:#093;color:#d8ffe1;border:1px solid #1f7a3a;border-radius:12px;padding:10px 12px;margin:0 0 12px 0;">
-                <?= esc($successMsg) ?>
-            </div>
+        <div style="background:#093;color:#d8ffe1;border:1px solid #1f7a3a;border-radius:12px;padding:10px 12px;margin:0 0 12px 0;">
+            <?= esc($successMsg) ?>
+        </div>
     <?php endif; ?>
 
     <?php if ($errorMsg): ?>
-            <div style="background:#551414;color:#ffd6d6;border:1px solid #7a2a2a;border-radius:12px;padding:10px 12px;margin:0 0 12px 0;">
-                <?= esc($errorMsg) ?>
-            </div>
+        <div style="background:#551414;color:#ffd6d6;border:1px solid #7a2a2a;border-radius:12px;padding:10px 12px;margin:0 0 12px 0;">
+            <?= esc($errorMsg) ?>
+        </div>
     <?php endif; ?>
 
     <form method="post" action="./profile.php"
@@ -456,6 +583,12 @@ require __DIR__ . '/layouts/header.php';
                 <p style="margin:0;opacity:.75;">Je kunt ze handmatig invullen of laten berekenen op basis van je profiel.</p>
             </div>
 
+            <?php if ($activeTag !== ''): ?>
+                <div style="background:#0d1310;border:1px solid #24382c;border-radius:12px;padding:10px 12px;color:#d8ffe1;">
+                    Actieve tag: <strong><?= esc(tag_label($activeTag)) ?></strong>. Bij <strong>Bereken advies</strong> gebruikt de app deze tag.
+                </div>
+            <?php endif; ?>
+
             <label style="display:grid;gap:6px;">
                 <span>Kilocalorieën per dag</span>
                 <input
@@ -525,18 +658,18 @@ require __DIR__ . '/layouts/header.php';
     </form>
 
     <?php if ($recommendedPreview): ?>
-            <div style="max-width:760px;margin-top:14px;background:#0d1310;border:1px solid #24382c;border-radius:14px;padding:14px 16px;">
-                <strong style="display:block;margin-bottom:6px;">Advies op basis van je profiel</strong>
-                <div style="opacity:.9;line-height:1.6;">
-                    <?= (int) $recommendedPreview['kcal'] ?> kcal ·
-                    <?= esc($recommendedPreview['protein']) ?> g eiwit ·
-                    <?= esc($recommendedPreview['carb']) ?> g koolhydraten ·
-                    <?= esc($recommendedPreview['fat']) ?> g vet
-                </div>
-                <p style="margin:8px 0 0 0;opacity:.7;">
-                    Dit is een schatting. Klik op <strong>Bereken advies</strong> om deze waarden direct in je dagdoelen te zetten.
-                </p>
+        <div style="max-width:760px;margin-top:14px;background:#0d1310;border:1px solid #24382c;border-radius:14px;padding:14px 16px;">
+            <strong style="display:block;margin-bottom:6px;">Advies op basis van je profiel<?= $activeTag !== '' ? ' + actieve tag' : '' ?></strong>
+            <div style="opacity:.9;line-height:1.6;">
+                <?= (int) $recommendedPreview['kcal'] ?> kcal ·
+                <?= esc($recommendedPreview['protein']) ?> g eiwit ·
+                <?= esc($recommendedPreview['carb']) ?> g koolhydraten ·
+                <?= esc($recommendedPreview['fat']) ?> g vet
             </div>
+            <p style="margin:8px 0 0 0;opacity:.7;">
+                Dit is een schatting. Klik op <strong>Bereken advies</strong> om deze waarden direct in je dagdoelen te zetten.
+            </p>
+        </div>
     <?php endif; ?>
 
     <p style="opacity:.75;margin:12px 0 0 0;">
