@@ -5,49 +5,6 @@ $activeTab = 'planner';
 require __DIR__ . '/db.php';
 require __DIR__ . '/helpers.php';
 
-/* ---------------- Fallback helpers (als helpers.php ze niet heeft) ---------------- */
-if (!function_exists('sql_execute')) {
-    function sql_execute(mysqli $mysqli, string $sql, array $params = []): bool
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt)
-            return false;
-        if ($params) {
-            $types = '';
-            $vals = [];
-            foreach ($params as $p) {
-                $types .= is_int($p) ? 'i' : (is_float($p) ? 'd' : 's');
-                $vals[] = $p;
-            }
-            $stmt->bind_param($types, ...$vals);
-        }
-        $ok = $stmt->execute();
-        $stmt->close();
-        return $ok;
-    }
-}
-if (!function_exists('sql_select')) {
-    function sql_select(mysqli $mysqli, string $sql, array $params = []): array
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt)
-            return [];
-        if ($params) {
-            $types = '';
-            $vals = [];
-            foreach ($params as $p) {
-                $types .= is_int($p) ? 'i' : (is_float($p) ? 'd' : 's');
-                $vals[] = $p;
-            }
-            $stmt->bind_param($types, ...$vals);
-        }
-        $stmt->execute();
-        $res = $stmt->get_result();
-        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-        $stmt->close();
-        return $rows;
-    }
-}
 if (!function_exists('esc')) {
     function esc($s)
     {

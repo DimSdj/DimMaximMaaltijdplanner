@@ -11,37 +11,6 @@ if (file_exists(__DIR__ . '/helpers.php')) {
 
 require_once __DIR__ . '/layouts/header.php';
 
-/* ---------------- Fallback helpers (als helpers.php dit niet heeft) ---------------- */
-if (!function_exists('sql_select')) {
-    function sql_select(mysqli $mysqli, string $sql, array $params = [], string $types = ''): array
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt) return [];
-        if ($params) {
-            if ($types === '') $types = str_repeat('s', count($params));
-            $stmt->bind_param($types, ...$params);
-        }
-        $stmt->execute();
-        $res = $stmt->get_result();
-        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-        $stmt->close();
-        return $rows;
-    }
-}
-if (!function_exists('sql_exec')) {
-    function sql_exec(mysqli $mysqli, string $sql, array $params = [], string $types = ''): bool
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt) return false;
-        if ($params) {
-            if ($types === '') $types = str_repeat('s', count($params));
-            $stmt->bind_param($types, ...$params);
-        }
-        $ok = $stmt->execute();
-        $stmt->close();
-        return (bool)$ok;
-    }
-}
 function esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 /* ---------------- Zorg dat kolommen bestaan ----------------
