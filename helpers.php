@@ -52,6 +52,12 @@ function sql_execute(mysqli $mysqli, string $sql, array $params = [], string $ty
     return $ok;
 }
 
+/** HTML-escape voor veilig inline gebruik in templates. */
+function esc($s): string
+{
+    return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+}
+
 // Haal macro's (kcal, p, f, c) per meal op basis van per_100g en grams/quantity
 function meal_macros($mysqli, array $meal): array
 {

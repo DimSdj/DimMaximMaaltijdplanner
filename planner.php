@@ -5,13 +5,6 @@ $activeTab = 'planner';
 require __DIR__ . '/db.php';
 require __DIR__ . '/helpers.php';
 
-if (!function_exists('esc')) {
-    function esc($s)
-    {
-        return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-    }
-}
-
 /* ---------------- Doelen (bootstrap + laden) ---------------- */
 sql_execute($mysqli, "
   CREATE TABLE IF NOT EXISTS goals (

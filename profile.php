@@ -5,13 +5,6 @@ $activeTab = 'profile';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 
-if (!function_exists('esc')) {
-    function esc($s)
-    {
-        return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-    }
-}
-
 if (!function_exists('parse_int_input')) {
     function parse_int_input($value, int $fallback = 0): int
     {

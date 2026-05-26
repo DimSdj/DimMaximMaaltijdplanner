@@ -5,12 +5,6 @@ $activeTab = 'dagboek';
 require __DIR__ . '/db.php';
 require __DIR__ . '/helpers.php';
 
-if (!function_exists('esc')) {
-    function esc($s)
-    {
-        return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-    }
-}
 if (!function_exists('meal_macros')) {
     // ⚠️ AANGEPAST: gebruikt kcal_calc/protein_calc/... uit de query als fallback
     function meal_macros(mysqli $mysqli, array $meal): array
