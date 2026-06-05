@@ -1,10 +1,13 @@
 <?php
-// layouts/footer.php — uniforme bottom nav met identieke solid-stijl iconen
+// layouts/footer.php — gedeelde onderkant van elke pagina.
+// Bevat de vaste bottom-navigatiebalk (tabbar) en de JavaScript voor de
+// zoek-overlay waarmee producten uit Open Food Facts toegevoegd worden.
 if (!isset($activeTab)) {
     $activeTab = '';
 }
 ?>
 <style>
+    /* Zelfde kleurthema als in header.php; --muted is het grijs voor inactieve tabs. */
     :root {
         --bg: #0a0a0a;
         --fg: #eaeaea;
@@ -13,10 +16,13 @@ if (!isset($activeTab)) {
         --brand: #22c55e;
     }
 
+    /* Extra ruimte onderaan zodat de vaste tabbar de inhoud niet overlapt. */
     body {
         padding-bottom: 72px;
     }
 
+    /* De vaste navigatiebalk onderaan het scherm (position: fixed, bottom: 0).
+       Verdeelt de tabs gelijkmatig en blijft altijd zichtbaar. */
     .tabbar {
         position: fixed;
         left: 0;
@@ -32,6 +38,8 @@ if (!isset($activeTab)) {
         z-index: 1000;
     }
 
+    /* Eén tab: icoon boven, label eronder. Grijs als inactief, groen (.active)
+       voor de pagina waar je nu bent. De transition maakt de kleurwissel vloeiend. */
     .tabbar a.tab {
         display: flex;
         flex-direction: column;
@@ -62,6 +70,8 @@ if (!isset($activeTab)) {
     }
 </style>
 
+<!-- De vijf navigatie-items. PHP zet class "active" op de tab die hoort bij $activeTab.
+     De SVG's zijn de iconen; <path d="..."> is de vorm van elk icoon. -->
 <nav class="tabbar" aria-label="Hoofdnavigatie">
     <!-- DAGBOEK -->
     <a href="index.php" class="tab <?php echo $activeTab === 'dagboek' ? 'active' : ''; ?>">
@@ -105,6 +115,8 @@ if (!isset($activeTab)) {
 </nav>
 
 <script>
+// Zoek-overlay: zoekt producten in Open Food Facts en voegt ze toe aan een maaltijd.
+// Alles in een (function(){ ... })() zodat variabelen niet lekken naar de rest van de pagina.
 (function(){
   const overlay = document.querySelector('#search-overlay');
   const input   = document.querySelector('#off-search-input');
@@ -114,12 +126,14 @@ if (!isset($activeTab)) {
   const badge   = document.querySelector('#off-result-badge');
   const openBtn = document.querySelector('#fab-add');
 
+  // Overlay tonen/verbergen. Bij sluiten maken we het zoekveld en de resultaten leeg.
   function openOverlay(){ overlay.style.display='block'; setTimeout(()=>input.focus(),50); }
   function closeOverlay(){ overlay.style.display='none'; list.innerHTML=''; input.value=''; }
   openBtn && openBtn.addEventListener('click', openOverlay);
   document.querySelector('#off-close')?.addEventListener('click', closeOverlay);
   overlay.addEventListener('click', e=>{ if(e.target===overlay) closeOverlay(); });
 
+  // Tabs in de overlay (bijv. 'products'); klikken wisselt de actieve modus en zoekt opnieuw.
   const tabs = Array.from(document.querySelectorAll('.off-tab'));
   let mode = 'products';
   tabs.forEach(t => t.addEventListener('click', () => {
@@ -128,10 +142,14 @@ if (!isset($activeTab)) {
     triggerSearch();
   }));
 
+  // Hulpfuncties: debounce wacht even met zoeken tot je klaar bent met typen (minder requests).
+  // n() maakt een veilig getal, fmt() maakt een net afgerond getal met eenheid.
   const debounce = (fn, ms=300) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
   const n = v => (v==null || isNaN(v)) ? 0 : +v;
   const fmt = (v,u='') => (v==null||isNaN(v)) ? '—' : `${(+v).toFixed(1)}${u}`;
 
+  // Bouwt het invul-paneeltje onder een zoekresultaat: hoeveelheid kiezen, live
+  // voedingswaarde-preview, en de knop die het product via add.php aan de maaltijd toevoegt.
   function makePanel(it){
     const kcal100 = n(it.kcal_100g ?? it['energy-kcal_100g'] ?? it.energy_kcal_100g ?? it.calories_100g ?? (it['energy-kj_100g'] ? it['energy-kj_100g']/4.184 : 0));
     const p100    = n(it.protein_100g);
@@ -166,6 +184,7 @@ if (!isset($activeTab)) {
     const add    = wrap.querySelector('.add');
     const cancel = wrap.querySelector('.cancel');
 
+    // Herberekent de voedingswaarde-preview op basis van de ingevulde hoeveelheid (per 100g * factor).
     function updatePreview(){
       const amount = Math.max(1, +qty.value || 1);
       const factor = amount / 100;
@@ -182,6 +201,8 @@ if (!isset($activeTab)) {
 
     cancel.addEventListener('click', () => wrap.closest('.off-card')?.classList.remove('open') || wrap.remove());
 
+    // Verzamelt alle productgegevens + hoeveelheid en stuurt ze naar add.php (POST).
+    // Bij succes sluit de overlay en herlaadt de pagina zodat de nieuwe maaltijd verschijnt.
     add.addEventListener('click', async () => {
       const grams = Math.max(1, +qty.value || 1);
       const fd = new FormData();
@@ -216,6 +237,7 @@ if (!isset($activeTab)) {
     return wrap;
   }
 
+  // Tekent de zoekresultaten als klikbare kaartjes. Geen resultaten -> nette melding.
   const render = (items = []) => {
     list.innerHTML = '';
     if (!items.length) {
@@ -251,6 +273,7 @@ if (!isset($activeTab)) {
     }
   };
 
+  // Klap een resultaat open of dicht. Er kan er steeds maar één open staan.
   function openPanel(row){
     if (row.classList.contains('open')) {
       row.classList.remove('open');
@@ -286,6 +309,8 @@ if (!isset($activeTab)) {
   });
 
   let currentAbort = null;
+  // De eigenlijke zoekopdracht: haalt resultaten op uit off_search.php op basis van wat je typt.
+  // currentAbort annuleert een vorige zoekopdracht als je alweer verder typt.
   const triggerSearch = debounce(async () => {
     const q = input.value.trim();
     if (!q) {
