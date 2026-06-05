@@ -1,12 +1,16 @@
 <?php
-// boodschappenlijst.php — User Story 3 (Maxim): automatische boodschappenlijst uit de planning
+// boodschappenlijst.php — User Story 3 (Maxim)
+// Doel: automatisch een boodschappenlijst maken uit wat er die week is ingepland.
+// Dezelfde producten worden gegroepeerd en hun grammen opgeteld; de lijst is printbaar.
 $activeTab = 'boodschappen';
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/layouts/header.php';
 
-// Week-bereik (ma t/m zo)
+// Bepaal het weekbereik (maandag t/m zondag) rond de gekozen datum.
+// date('N') geeft de dag van de week (1=maandag .. 7=zondag); daarmee rekenen
+// we terug naar de maandag en vooruit naar de zondag.
 $refDate = $_GET['date'] ?? date('Y-m-d');
 $refTs = strtotime($refDate);
 $dow = (int)date('N', $refTs);           // 1=ma, 7=zo
@@ -18,6 +22,11 @@ $end   = date('Y-m-d', $weekEndTs);
 $prevWeekDate = date('Y-m-d', strtotime('-7 days', $weekStartTs));
 $nextWeekDate = date('Y-m-d', strtotime('+7 days', $weekStartTs));
 
+// Kernquery van deze user story: haal alle maaltijden in het weekbereik op en tel
+// dezelfde producten bij elkaar op.
+// - LOWER(TRIM(...)) normaliseert de naam, zodat "Pasta" en "pasta " als één tellen
+// - GROUP BY + SUM(grams) telt de hoeveelheden per product op
+// - HAVING total_grams > 0 laat lege regels weg
 $rows = sql_select($mysqli, "
     SELECT
         LOWER(TRIM(COALESCE(f.description, 'onbekend'))) AS name_norm,
@@ -31,6 +40,7 @@ $rows = sql_select($mysqli, "
     ORDER BY name_norm ASC
 ", [$start, $end], 'ss');
 
+// Maakt de hoeveelheid leesbaar: onder 1000 g tonen we gram, daarboven kg (bijv. 1500 g -> "1,5 kg").
 function format_qty_g($grams) {
     $g = (int)round((float)$grams);
     if ($g >= 1000) {
@@ -58,6 +68,7 @@ function format_qty_g($grams) {
             <a href="?date=<?= esc($nextWeekDate) ?>" style="padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);text-decoration:none;color:#eaeaea;">
                 Volgende week →
             </a>
+            <!-- Printen via de browser; elementen met class "no-print" komen niet mee op papier -->
             <button type="button" onclick="window.print()" style="padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:var(--brand);color:var(--ink);font-weight:800;cursor:pointer;">
                 Print
             </button>
@@ -76,6 +87,7 @@ function format_qty_g($grams) {
     </form>
 
     <section style="margin-top:16px;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px;background:rgba(255,255,255,.03);">
+        <!-- Lege week: geen geplande items -> nette melding in plaats van een lege lijst -->
         <?php if (empty($rows)): ?>
             <p style="margin:0;opacity:.85;">Er staan nog geen geplande items in deze week.</p>
         <?php else: ?>
