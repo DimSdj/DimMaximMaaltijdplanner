@@ -7,17 +7,6 @@ $activeTab = 'dagboek';
 require __DIR__ . '/db.php';
 require __DIR__ . '/helpers.php';
 
-if (!function_exists('meal_macros')) {
-    function meal_macros(mysqli $mysqli, array $meal): array
-    {
-        $k = isset($meal['kcal_calc']) ? (float) $meal['kcal_calc'] : (float) ($meal['kcal'] ?? 0);
-        $p = isset($meal['protein_calc']) ? (float) $meal['protein_calc'] : (float) ($meal['protein'] ?? 0);
-        $c = isset($meal['carb_calc']) ? (float) $meal['carb_calc'] : (float) ($meal['carb'] ?? 0);
-        $f = isset($meal['fat_calc']) ? (float) $meal['fat_calc'] : (float) ($meal['fat'] ?? 0);
-        return ['kcal' => $k, 'protein' => $p, 'carb' => $c, 'fat' => $f];
-    }
-}
-
 /* --------------------------- Dagdoel ophalen ---------------------------
    Haalt het kcal-doel + macrodoelen op uit de goals-tabel (rij id=1).
    Bestaat de tabel of rij nog niet, dan maken we die met standaardwaarden,
