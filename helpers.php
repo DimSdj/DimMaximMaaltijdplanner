@@ -1,10 +1,28 @@
 <?php
-// helpers.php
-function sql_select($mysqli, $sql, $params = [], $types = '')
+// helpers.php — centrale plek voor DB-helpers en macro-berekening
+
+/**
+ * Detecteert types per parameter (i = int, d = float, s = string).
+ * Voorkomt dat we elke aanroep met expliciete types moeten doen.
+ */
+function _sql_auto_types(array $params): string
+{
+    $types = '';
+    foreach ($params as $p) {
+        $types .= is_int($p) ? 'i' : (is_float($p) ? 'd' : 's');
+    }
+    return $types;
+}
+
+/** Voer een SELECT uit en geef rijen als associatieve array terug. */
+function sql_select(mysqli $mysqli, string $sql, array $params = [], string $types = ''): array
 {
     $stmt = $mysqli->prepare($sql);
-    if ($params)
-        $stmt->bind_param($types ?: str_repeat('s', count($params)), ...$params);
+    if (!$stmt) return [];
+    if ($params) {
+        if ($types === '') $types = _sql_auto_types($params);
+        $stmt->bind_param($types, ...$params);
+    }
     $stmt->execute();
     $res = $stmt->get_result();
     $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
@@ -12,15 +30,32 @@ function sql_select($mysqli, $sql, $params = [], $types = '')
     return $rows;
 }
 
-function sql_exec($mysqli, $sql, $params = [], $types = '')
+/** Voer een INSERT/UPDATE/DELETE uit. Geeft [success, insert_id] terug. */
+function sql_exec(mysqli $mysqli, string $sql, array $params = [], string $types = ''): array
 {
     $stmt = $mysqli->prepare($sql);
-    if ($params)
-        $stmt->bind_param($types ?: str_repeat('s', count($params)), ...$params);
+    if (!$stmt) return [false, 0];
+    if ($params) {
+        if ($types === '') $types = _sql_auto_types($params);
+        $stmt->bind_param($types, ...$params);
+    }
     $ok = $stmt->execute();
     $insert_id = $stmt->insert_id;
     $stmt->close();
     return [$ok, $insert_id];
+}
+
+/** Variant van sql_exec die alleen bool teruggeeft (voor pagina's die geen insert_id willen). */
+function sql_execute(mysqli $mysqli, string $sql, array $params = [], string $types = ''): bool
+{
+    [$ok, ] = sql_exec($mysqli, $sql, $params, $types);
+    return $ok;
+}
+
+/** HTML-escape voor veilig inline gebruik in templates. */
+function esc($s): string
+{
+    return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 }
 
 // Haal macro's (kcal, p, f, c) per meal op basis van per_100g en grams/quantity

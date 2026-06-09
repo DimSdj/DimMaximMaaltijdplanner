@@ -1,72 +1,16 @@
 <?php
-// index.php (met FAB + zoekoverlay)
+// index.php — Dagboek + User Story 5 (Maxim)
+// Toont de maaltijden van vandaag, telt de calorieën/macro's op tot een dagtotaal,
+// en waarschuwt als je boven 110% of onder 90% van je dagdoel zit.
 $activeTab = 'dagboek';
 
 require __DIR__ . '/db.php';
 require __DIR__ . '/helpers.php';
 
-/* --------------------------- Fallback helpers --------------------------- */
-if (!function_exists('sql_execute')) {
-    function sql_execute(mysqli $mysqli, string $sql, array $params = []): bool
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt)
-            return false;
-        if ($params) {
-            $types = '';
-            $vals = [];
-            foreach ($params as $p) {
-                $types .= is_int($p) ? 'i' : (is_float($p) ? 'd' : 's');
-                $vals[] = $p;
-            }
-            $stmt->bind_param($types, ...$vals);
-        }
-        $ok = $stmt->execute();
-        $stmt->close();
-        return $ok;
-    }
-}
-if (!function_exists('sql_select')) {
-    function sql_select(mysqli $mysqli, string $sql, array $params = []): array
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt)
-            return [];
-        if ($params) {
-            $types = '';
-            $vals = [];
-            foreach ($params as $p) {
-                $types .= is_int($p) ? 'i' : (is_float($p) ? 'd' : 's');
-                $vals[] = $p;
-            }
-            $stmt->bind_param($types, ...$vals);
-        }
-        $stmt->execute();
-        $res = $stmt->get_result();
-        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-        $stmt->close();
-        return $rows;
-    }
-}
-if (!function_exists('esc')) {
-    function esc($s)
-    {
-        return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-    }
-}
-if (!function_exists('meal_macros')) {
-    // ⚠️ AANGEPAST: gebruikt kcal_calc/protein_calc/... uit de query als fallback
-    function meal_macros(mysqli $mysqli, array $meal): array
-    {
-        $k = isset($meal['kcal_calc']) ? (float) $meal['kcal_calc'] : (float) ($meal['kcal'] ?? 0);
-        $p = isset($meal['protein_calc']) ? (float) $meal['protein_calc'] : (float) ($meal['protein'] ?? 0);
-        $c = isset($meal['carb_calc']) ? (float) $meal['carb_calc'] : (float) ($meal['carb'] ?? 0);
-        $f = isset($meal['fat_calc']) ? (float) $meal['fat_calc'] : (float) ($meal['fat'] ?? 0);
-        return ['kcal' => $k, 'protein' => $p, 'carb' => $c, 'fat' => $f];
-    }
-}
-
-/* --------------------------- Goals bootstrap --------------------------- */
+/* --------------------------- Dagdoel ophalen ---------------------------
+   Haalt het kcal-doel + macrodoelen op uit de goals-tabel (rij id=1).
+   Bestaat de tabel of rij nog niet, dan maken we die met standaardwaarden,
+   zodat de pagina ook op een lege database werkt. */
 sql_execute($mysqli, "
   CREATE TABLE IF NOT EXISTS goals (
     id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
@@ -91,7 +35,9 @@ $goalF = (float) ($g[0]['fat'] ?? 70);
 $today = date('Y-m-d');
 $slots = ['Ontbijt', 'Lunch', 'Diner', 'Snack'];
 
-/* ⚠️ AANGEPAST QUERY: berekent kcal/prot/kh/vet on-the-fly als meals-waarden 0/NULL zijn */
+/* Maaltijden van vandaag ophalen. De CASE WHEN's berekenen kcal/macro's "on the fly":
+   staat er al een vaste waarde op de maaltijd, gebruik die; anders reken
+   kcal_100g * (grams / 100). Zo klopt het totaal in beide gevallen. */
 $mealsToday = sql_select($mysqli, "
   SELECT
     m.*,
@@ -114,6 +60,7 @@ $mealsToday = sql_select($mysqli, "
   ORDER BY FIELD(m.slot,'Ontbijt','Lunch','Diner','Snack'), m.id DESC
 ", [$today]);
 
+// Dagtotaal: loop door alle maaltijden van vandaag en tel de macro's bij elkaar op.
 $totals = ['kcal' => 0, 'protein' => 0, 'fat' => 0, 'carb' => 0];
 foreach ($mealsToday as $i => $meal) {
     $mac = meal_macros($mysqli, $meal);
@@ -126,6 +73,8 @@ foreach ($mealsToday as $i => $meal) {
 $eaten = (int) round($totals['kcal']);
 $remaining = max(0, $goalKcal - $eaten);
 
+// Waarschuwing volgens de acceptatiecriteria: boven 110% of onder 90% van het dagdoel.
+// De check $eaten > 0 voorkomt een "te laag"-melding op een dag waarop je nog niets at.
 $kcalWarning = '';
 if ($goalKcal > 0) {
     $low = $goalKcal * 0.90;
@@ -137,6 +86,7 @@ if ($goalKcal > 0) {
     }
 }
 
+// Vulpercentage voor de voortgangsbalk, afgetopt op 100%.
 $progress = $goalKcal > 0 ? min(100, ($eaten / $goalKcal) * 100) : 0;
 
 $grouped = array_fill_keys($slots, []);

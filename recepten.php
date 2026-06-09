@@ -1,5 +1,8 @@
 <?php
-// recepten.php — User Story 1 (Maxim): recepten opslaan + bewerken + verwijderen met bevestiging
+// recepten.php — User Story 1 (Maxim)
+// Doel: eigen recepten opslaan, bewerken en verwijderen (met bevestiging).
+// Recepten worden bewaard in de 'foods'-tabel met is_recipe=1, zodat ze dezelfde
+// structuur en voedingswaarden-per-100g delen als gewone producten.
 $activeTab = 'recepten';
 
 require_once __DIR__ . '/db.php';
@@ -11,49 +14,11 @@ if (file_exists(__DIR__ . '/helpers.php')) {
 
 require_once __DIR__ . '/layouts/header.php';
 
-/* ---------------- Fallback helpers (als helpers.php dit niet heeft) ---------------- */
-if (!function_exists('sql_select')) {
-    function sql_select(mysqli $mysqli, string $sql, array $params = [], string $types = ''): array
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt) return [];
-        if ($params) {
-            if ($types === '') $types = str_repeat('s', count($params));
-            $stmt->bind_param($types, ...$params);
-        }
-        $stmt->execute();
-        $res = $stmt->get_result();
-        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-        $stmt->close();
-        return $rows;
-    }
-}
-if (!function_exists('sql_exec')) {
-    function sql_exec(mysqli $mysqli, string $sql, array $params = [], string $types = ''): bool
-    {
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt) return false;
-        if ($params) {
-            if ($types === '') $types = str_repeat('s', count($params));
-            $stmt->bind_param($types, ...$params);
-        }
-        $ok = $stmt->execute();
-        $stmt->close();
-        return (bool)$ok;
-    }
-}
-function esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-
-/* ---------------- Zorg dat kolommen bestaan ----------------
-   We slaan recepten op in 'foods' zodat het past bij de rest van de app.
-   Kolommen die we nodig hebben:
-   - is_recipe, ingredients, image_url
-   - kcal_per_portion, portion_grams
-   - kcal_100g, protein_100g, carbs_100g, fat_100g
-*/
+// Zorgt dat de 'foods'-tabel alle kolommen heeft die een recept nodig heeft.
+// Draait veilig bij elke pagina-load: bestaat een kolom al, dan geeft MySQL
+// foutcode 1060 (Duplicate column) terug, die we hieronder bewust negeren.
 function ensure_recipe_columns(mysqli $mysqli): void
 {
-    // Dit is de FIX: geen \" meer, gewoon normale quotes
     $alters = [
         "ALTER TABLE foods ADD COLUMN is_recipe TINYINT(1) NOT NULL DEFAULT 0",
         "ALTER TABLE foods ADD COLUMN ingredients TEXT NULL",
@@ -86,6 +51,7 @@ $errorMsg   = '';
 $editId   = (int)($_GET['edit'] ?? 0);
 $deleteId = (int)($_GET['delete'] ?? 0);
 
+// Formulierafhandeling: opslaan (nieuw recept of bewerking) en verwijderen.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -104,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fat_100g     = (float)($_POST['fat_100g'] ?? 0);
 
         // kcal per portie is verplicht (US5)
+        // Server-side validatie in vaste volgorde; pas als alles klopt raakt de database.
+        // Titel verplicht, minstens één ingrediënt, en kcal per portie verplicht.
         if ($title === '') {
             $errorMsg = 'Titel is verplicht.';
         } elseif ($ingredients === '') {
@@ -112,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errorMsg = 'kcal per portie is verplicht (minimaal 1).';
         } else {
             // kcal/100g berekenen uit portie
+            // Reken kcal per portie om naar kcal per 100 gram, zodat het consistent is
+            // met hoe de rest van de app voedingswaarden opslaat (alles per 100 gram).
             $kcal_100g = round(($kcal_portie / $portie_gram) * 100, 1);
 
             try {
@@ -129,7 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $successMsg = 'Recept bijgewerkt.';
                     $editId = 0;
                 } else {
-                    // INSERT (hier zat bij jou een fout: verkeerde aantal placeholders)
+                    // Nieuw recept toevoegen. Prepared statement met expliciete types ('sssiiddddi')
+                    // beschermt tegen SQL-injectie.
                     $sql = "INSERT INTO foods
                             (description, ingredients, image_url, kcal_per_portion, portion_grams, kcal_100g, protein_100g, carbs_100g, fat_100g, is_recipe)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -147,6 +118,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Verwijderen gebeurt pas NA bevestiging: deze POST-actie komt alleen vanaf het
+    // bevestigingsscherm, nooit met één directe klik.
     if ($action === 'delete_confirm') {
         $id = (int)($_POST['id'] ?? 0);
         if ($id > 0) {
@@ -162,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ---------------- Data ophalen ---------------- */
+// Data voor de weergave ophalen: het te bewerken recept (bij ?edit=) en de volledige receptenlijst.
 $editRecipe = null;
 if ($editId > 0) {
     $rows = sql_select($mysqli, "SELECT * FROM foods WHERE id=? AND is_recipe=1", [$editId], 'i');
@@ -201,6 +175,7 @@ if (!function_exists('mb_strimwidth')) {
         </div>
     <?php endif; ?>
 
+    <!-- Bevestigingsscherm vóór verwijderen: zo kun je nooit per ongeluk een recept wissen -->
     <?php if ($deleteId > 0): ?>
         <section style="border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 14px;margin:0 0 16px 0;background:rgba(255,255,255,.03);">
             <h2 style="margin:0 0 8px 0;font-size:18px;">Weet je het zeker?</h2>
